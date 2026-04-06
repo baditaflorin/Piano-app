@@ -152,16 +152,16 @@ class PianoApp {
     }
 
     onNoteDetected(data) {
-        const { note, frequency, confidence, source } = data;
+        const { note, source } = data;
 
-        if (source === 'mic') {
-            // Highlight the key
-            this.uiManager.animateKey(note, 'listening');
-        }
+        this.uiManager.animateKey(note, 'listening');
 
-        // Check song progress if in learning mode
-        if (this.currentSongId !== 'free') {
-            this.checkSongProgress(note);
+        // Mic pitch = same hold system as keyboard, but only start if not already holding this note
+        if (this.currentSong && this.currentSongId !== 'free') {
+            const target = this.currentSong.notes[this.currentStep];
+            if (target && note === target.note && this._holdNote !== note) {
+                this._startHold(note, target.duration, this.currentSong.bpm);
+            }
         }
     }
 
