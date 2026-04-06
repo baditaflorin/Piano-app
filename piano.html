@@ -69,6 +69,10 @@
             <button id="songs-btn" class="footer-btn" title="Song Picker">
                 📚
             </button>
+            <label id="voice-piano-label" class="footer-voice-toggle" title="Experimental: sing to play piano">
+                <input type="checkbox" id="voice-piano-toggle">
+                <span>🎤🎹</span>
+            </label>
         </footer>
     </div>
 
@@ -116,6 +120,14 @@
             <div class="settings-group">
                 <label>Microphone Sensitivity</label>
                 <input id="sensitivity-control" type="range" min="0" max="100" step="10" value="50">
+            </div>
+            <div class="settings-group">
+                <label>Low Frequency Filter — <span id="freq-min-label">130 Hz (C3)</span></label>
+                <input id="freq-min-control" type="range" min="80" max="800" step="10" value="130">
+            </div>
+            <div class="settings-group">
+                <label>High Frequency Filter — <span id="freq-max-label">2093 Hz (C7)</span></label>
+                <input id="freq-max-control" type="range" min="500" max="2200" step="10" value="2093">
             </div>
             <button id="close-parent-mode" class="settings-close-btn">Close</button>
         </div>

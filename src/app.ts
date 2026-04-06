@@ -73,6 +73,9 @@ class PianoApp {
   private _correctNotes: number;
   private _wrongNotes: number;
 
+  // Voice-to-piano experimental mode
+  private _voicePianoMode: boolean;
+
   constructor() {
     this.eventBus = new EventBus();
 
@@ -103,6 +106,9 @@ class PianoApp {
     // Scoring
     this._correctNotes = 0;
     this._wrongNotes   = 0;
+
+    // Voice-to-piano mode
+    this._voicePianoMode = false;
 
     // Initialize
     void this.init();
@@ -162,6 +168,49 @@ class PianoApp {
     this.eventBus.on('recording:stop', (data) => {
       console.log(`Recording stopped: ${data.noteCount} notes, ${data.duration}ms`);
     });
+
+    // Frequency range sliders
+    const freqMinControl = document.getElementById('freq-min-control') as HTMLInputElement | null;
+    const freqMaxControl = document.getElementById('freq-max-control') as HTMLInputElement | null;
+    const freqMinLabel   = document.getElementById('freq-min-label');
+    const freqMaxLabel   = document.getElementById('freq-max-label');
+
+    const freqToNoteName = (hz: number): string => {
+      const midi = Math.round(12 * Math.log2(hz / 440) + 69);
+      const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+      return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+    };
+
+    freqMinControl?.addEventListener('input', () => {
+      const hz = parseInt(freqMinControl.value);
+      // Clamp so min never exceeds max
+      if (hz >= this.pitchEngine.FREQ_MAX) {
+        freqMinControl.value = String(this.pitchEngine.FREQ_MAX - 10);
+        return;
+      }
+      this.pitchEngine.FREQ_MIN = hz;
+      if (freqMinLabel) freqMinLabel.textContent = `${hz} Hz (${freqToNoteName(hz)})`;
+    });
+
+    freqMaxControl?.addEventListener('input', () => {
+      const hz = parseInt(freqMaxControl.value);
+      if (hz <= this.pitchEngine.FREQ_MIN) {
+        freqMaxControl.value = String(this.pitchEngine.FREQ_MIN + 10);
+        return;
+      }
+      this.pitchEngine.FREQ_MAX = hz;
+      if (freqMaxLabel) freqMaxLabel.textContent = `${hz} Hz (${freqToNoteName(hz)})`;
+    });
+
+    // Voice-to-piano toggle
+    const voiceToggle = document.getElementById('voice-piano-toggle') as HTMLInputElement | null;
+    voiceToggle?.addEventListener('change', () => {
+      this._voicePianoMode = voiceToggle.checked;
+      // Auto-start mic when enabling voice-piano mode
+      if (this._voicePianoMode && !this.isMicActive) {
+        void this.toggleMicrophone();
+      }
+    });
   }
 
   async toggleMicrophone(): Promise<void> {
@@ -197,6 +246,12 @@ class PianoApp {
 
     this.uiManager.animateKey(note, 'listening');
 
+    // Voice-to-piano experimental mode: play the detected note as piano sound
+    if (this._voicePianoMode && this.currentSongId === 'free') {
+      this.audioManager.playSound(note);
+      return;
+    }
+
     // Mic pitch = same hold system as keyboard, but only start if not already holding this note
     if (this.currentSong && this.currentSongId !== 'free') {
       const target = this.currentSong.notes[this.currentStep];
@@ -230,17 +285,8 @@ class PianoApp {
   private onNoteUp(data: EventMap['note:up']): void {
     const { note } = data;
     if (note !== this._holdNote) return;
-
-    const held   = Date.now() - this._holdStart;
-    const needed = this._holdDurationMs;
-
-    if (held >= needed * 0.75) {
-      // Held long enough (75% of target) — accept and advance
-      this._completeHold();
-    } else {
-      // Released too early — cancel, let Paul try again
-      this._cancelHold();
-    }
+    // Any press+release of the correct note advances — hold bar is visual only
+    this._completeHold();
   }
 
   private _startHold(note: string, duration: NoteDuration, bpm: number): void {
@@ -272,15 +318,6 @@ class PianoApp {
     this.uiManager.flashCorrect(note);
     this.uiManager.cancelHoldFill(note);
     this._advanceSong(note);
-  }
-
-  private _cancelHold(): void {
-    if (this._holdTimer !== null) clearTimeout(this._holdTimer);
-    const note = this._holdNote;
-    this._holdNote = null;
-    this.uiManager.cancelHoldFill(note);
-    // Re-highlight so Paul knows to try again
-    if (note) this.uiManager.highlightNote(note);
   }
 
   private _advanceSong(completedNote: string): void {

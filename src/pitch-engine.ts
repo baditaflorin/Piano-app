@@ -43,8 +43,8 @@ export class PitchEngine {
   public readonly CLARITY_MIN: number;
 
   // Frequency range: child voice + piano keys (C3–C7)
-  public readonly FREQ_MIN: number;
-  public readonly FREQ_MAX: number;
+  public FREQ_MIN: number;
+  public FREQ_MAX: number;
 
   constructor(eventBus: EventBusLike | null) {
     this.eventBus    = eventBus;
