@@ -203,10 +203,19 @@ body {
 .key[data-note^="A"] { --key-note-color: var(--note-a); }
 .key[data-note^="B"] { --key-note-color: var(--note-b); }
 
+/* Target key: glows in ITS OWN note color so Paul can match timeline circle to piano key */
 .key.target {
-    outline: 3px solid var(--accent-yellow);
-    outline-offset: -2px;
-    box-shadow: 0 0 16px var(--accent-yellow), 0 4px 12px rgba(0, 0, 0, 0.4);
+    background: var(--key-note-color, #FFE66D) !important;
+    box-shadow: 0 0 24px var(--key-note-color, #FFE66D),
+                0 0 48px var(--key-note-color, #FFE66D),
+                0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    animation: keyTargetPulse 0.9s ease-in-out infinite;
+    transform: none !important;
+}
+
+@keyframes keyTargetPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.65; }
 }
 
 @keyframes keyPress {

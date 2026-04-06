@@ -133,7 +133,7 @@ export class UIManager {
         const keyEl = document.querySelector(`[data-note="${note}"]`);
         if (!keyEl) return;
         keyEl.classList.add(type);
-        setTimeout(() => keyEl.classList.remove(type), 200);
+        setTimeout(() => keyEl.classList.remove(type), 350);
     }
 
     updateMicUI(isActive) {

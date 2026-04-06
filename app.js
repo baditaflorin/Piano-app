@@ -187,11 +187,18 @@ class PianoApp {
             // Correct note!
             this.currentStep++;
 
+            // Update visualizer step
+            this.eventBus.emit('song:step', {
+                step: this.currentStep,
+                playedSteps: Array.from({ length: this.currentStep }, (_, i) => i)
+            });
+
             if (this.currentStep >= notes.length) {
                 // Song complete
+                this.uiManager.clearAllHighlights();
                 this.showCelebration(this.currentSong.title, 100);
             } else {
-                // Highlight the next target
+                // Highlight the next target key on the piano
                 const nextNote = notes[this.currentStep].note;
                 this.uiManager.highlightNote(nextNote);
             }
@@ -215,7 +222,9 @@ class PianoApp {
             this.currentSong = this.songLibrary.getSong(songId);
             if (this.currentSong) {
                 this.songVisualizer.setSong(this.currentSong);
-                // Highlight the first note immediately
+                // Tell visualizer we're at step 0
+                this.eventBus.emit('song:step', { step: 0, playedSteps: [] });
+                // Highlight the first note on the piano
                 this.uiManager.highlightNote(this.currentSong.notes[0].note);
                 console.log(`Selected song: ${this.currentSong.title}`);
             }

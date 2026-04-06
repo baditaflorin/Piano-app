@@ -1,15 +1,14 @@
 /**
  * Song Visualizer
- * Canvas-based timeline showing target notes and played notes
+ * Shows the song as big colored circles — no text, Paul just matches colors
  */
 
 export class SongVisualizer {
-    // Note-to-color mapping (synesthesia-inspired)
     static NOTE_COLORS = {
         'C': '#FF4444', 'C#': '#FF6666',
         'D': '#FF8844', 'D#': '#FFAA66',
         'E': '#FFDD44', 'F': '#44DD44',
-        'F#': '#66DD66', 'G': '#44DDDD',
+        'F#': '#66EE66', 'G': '#44DDDD',
         'G#': '#66DDDD', 'A': '#4488FF',
         'A#': '#6699FF', 'B': '#AA44FF'
     };
@@ -20,24 +19,15 @@ export class SongVisualizer {
         this.ctx = canvas.getContext('2d');
 
         this.targetNotes = [];
-        this.recordedNotes = [];
-        this.currentTime = 0;
-        this.isPlaying = false;
-        this.scrollPosition = 0;
+        this.currentStep = 0;    // which note Paul needs to play next
+        this.playedSteps = [];   // which steps have been completed
 
-        // Visual settings
-        this.noteBlockWidth = 60;
-        this.noteBlockHeight = 40;
-        this.spacing = 10;
-        this.playheadX = canvas.width / 2;
+        this.animFrame = 0;      // for pulsing animations
 
-        // Listen to events
         if (this.eventBus) {
-            this.eventBus.on('note:detected', (data) => this.onNoteDetected(data));
-            this.eventBus.on('playback:start', () => { this.isPlaying = true; });
-            this.eventBus.on('playback:end', () => { this.isPlaying = false; });
-            this.eventBus.on('playback:tick', (data) => {
-                this.currentTime = data.currentTime;
+            this.eventBus.on('song:step', (data) => {
+                this.currentStep = data.step;
+                this.playedSteps = data.playedSteps || [];
             });
         }
 
@@ -48,207 +38,146 @@ export class SongVisualizer {
     resizeCanvas() {
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
-        this.playheadX = this.canvas.width / 2;
     }
 
     setSong(songData) {
         this.targetNotes = [];
+        this.currentStep = 0;
+        this.playedSteps = [];
+
         if (!songData || !songData.notes) return;
 
-        // Handle both array of strings and array of objects
-        const notes = songData.notes;
-        let currentTime = 0;
-
-        for (let i = 0; i < notes.length; i++) {
-            const noteData = typeof notes[i] === 'string' ? { note: notes[i], duration: 'quarter' } : notes[i];
-            const duration = this.durationToMs(noteData.duration);
-
-            this.targetNotes.push({
-                note: noteData.note,
-                timestamp: currentTime,
-                duration: duration
-            });
-
-            currentTime += duration;
+        for (const n of songData.notes) {
+            const note = typeof n === 'string' ? n : n.note;
+            this.targetNotes.push(note);
         }
-
-        console.log(`Visualizer loaded ${this.targetNotes.length} target notes`);
-    }
-
-    setRecording(recordedNotes) {
-        this.recordedNotes = [...recordedNotes];
-        console.log(`Visualizer loaded ${this.recordedNotes.length} recorded notes`);
-    }
-
-    onNoteDetected(data) {
-        if (!this.isPlaying) {
-            // During recording, add to recorded notes
-            this.recordedNotes.push({
-                note: data.note,
-                timestamp: this.recordedNotes.length === 0 ? 0 :
-                    this.recordedNotes[this.recordedNotes.length - 1].timestamp + 100,
-                duration: 100,
-                confidence: data.confidence
-            });
-        }
-    }
-
-    durationToMs(duration) {
-        const bpm = 100; // Default tempo
-        const quarterMs = (60000 / bpm);
-
-        const durationMap = {
-            'whole': quarterMs * 4,
-            'half': quarterMs * 2,
-            'quarter': quarterMs,
-            'eighth': quarterMs / 2,
-            'sixteenth': quarterMs / 4
-        };
-
-        return durationMap[duration] || quarterMs;
-    }
-
-    render() {
-        this.ctx.fillStyle = 'rgba(26, 10, 46, 0.9)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw top row: target notes
-        this.drawTargetNotes();
-
-        // Draw bottom row: recorded notes
-        this.drawRecordedNotes();
-
-        // Draw playhead
-        this.drawPlayhead();
-
-        // Auto-scroll to keep playhead centered
-        this.updateScroll();
-    }
-
-    drawTargetNotes() {
-        const startTime = this.scrollPosition;
-        const endTime = startTime + this.getVisibleDuration();
-
-        this.ctx.fillStyle = '#555';
-        this.ctx.fillText('Target:', 10, 35);
-
-        for (const target of this.targetNotes) {
-            if (target.timestamp + target.duration < startTime || target.timestamp > endTime) {
-                continue;
-            }
-
-            const x = this.timeToX(target.timestamp);
-            const width = Math.max(this.noteBlockWidth, this.durationToWidth(target.duration));
-            const color = SongVisualizer.NOTE_COLORS[target.note] || '#888';
-
-            this.drawNoteBlock(x, 50, width, this.noteBlockHeight, color, target.note);
-        }
-    }
-
-    drawRecordedNotes() {
-        const startTime = this.scrollPosition;
-        const endTime = startTime + this.getVisibleDuration();
-
-        this.ctx.fillStyle = '#888';
-        this.ctx.fillText('You:', 10, this.canvas.height - 50);
-
-        for (const recorded of this.recordedNotes) {
-            if (recorded.timestamp + recorded.duration < startTime || recorded.timestamp > endTime) {
-                continue;
-            }
-
-            const x = this.timeToX(recorded.timestamp);
-            const width = Math.max(this.noteBlockWidth, this.durationToWidth(recorded.duration));
-            const color = SongVisualizer.NOTE_COLORS[recorded.note] || '#888';
-
-            // Check if it matches a target
-            const matchesTarget = this.findMatchingTarget(recorded);
-            const alpha = recorded.confidence > 0.7 ? 1 : 0.5;
-
-            this.ctx.globalAlpha = alpha;
-            this.drawNoteBlock(x, this.canvas.height - 100, width, this.noteBlockHeight,
-                               matchesTarget ? '#4CAF50' : color, recorded.note);
-            this.ctx.globalAlpha = 1;
-        }
-    }
-
-    drawNoteBlock(x, y, width, height, color, label) {
-        this.ctx.fillStyle = color;
-        this.ctx.fillRect(x, y, width, height);
-
-        this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(x, y, width, height);
-
-        // Draw note label
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = 'bold 12px sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(label, x + width / 2, y + height / 2 + 4);
-    }
-
-    drawPlayhead() {
-        this.ctx.strokeStyle = '#FF6B6B';
-        this.ctx.lineWidth = 3;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.playheadX, 0);
-        this.ctx.lineTo(this.playheadX, this.canvas.height);
-        this.ctx.stroke();
-
-        // Triangle indicator
-        this.ctx.fillStyle = '#FF6B6B';
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.playheadX - 8, 0);
-        this.ctx.lineTo(this.playheadX + 8, 0);
-        this.ctx.lineTo(this.playheadX, 12);
-        this.ctx.fill();
-    }
-
-    timeToX(timeMs) {
-        const pixelsPerMs = this.canvas.width / this.getVisibleDuration();
-        return (timeMs - this.scrollPosition) * pixelsPerMs;
-    }
-
-    xToTime(x) {
-        const pixelsPerMs = this.canvas.width / this.getVisibleDuration();
-        return this.scrollPosition + (x / pixelsPerMs);
-    }
-
-    durationToWidth(durationMs) {
-        const pixelsPerMs = this.canvas.width / this.getVisibleDuration();
-        return Math.max(20, durationMs * pixelsPerMs);
-    }
-
-    getVisibleDuration() {
-        return 15000; // Show 15 seconds at a time
-    }
-
-    updateScroll() {
-        if (this.isPlaying) {
-            // Keep playhead centered
-            this.scrollPosition = Math.max(0, this.currentTime - this.getVisibleDuration() / 2);
-        }
-    }
-
-    scrollToPosition(timeMs) {
-        this.scrollPosition = Math.max(0, timeMs - this.getVisibleDuration() / 2);
-    }
-
-    findMatchingTarget(recordedNote) {
-        // Find a target note near this recorded note
-        for (const target of this.targetNotes) {
-            if (target.note === recordedNote.note &&
-                Math.abs(target.timestamp - recordedNote.timestamp) < 500) {
-                return true;
-            }
-        }
-        return false;
     }
 
     clear() {
         this.targetNotes = [];
-        this.recordedNotes = [];
-        this.currentTime = 0;
-        this.scrollPosition = 0;
+        this.currentStep = 0;
+        this.playedSteps = [];
+    }
+
+    render() {
+        this.animFrame++;
+        const ctx = this.ctx;
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+
+        // Clear
+        ctx.fillStyle = '#1a0a2e';
+        ctx.fillRect(0, 0, W, H);
+
+        if (this.targetNotes.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Pick a song! 📚', W / 2, H / 2);
+            return;
+        }
+
+        // Layout: circles in a row, centered, scroll so current is always visible
+        const CIRCLE_R = Math.min(32, (H * 0.3));
+        const GAP = CIRCLE_R * 0.6;
+        const STEP = (CIRCLE_R * 2) + GAP;
+        const ROW_Y = H / 2;
+
+        // Scroll so the current note is always near the left quarter of the canvas
+        const targetX = W * 0.25;
+        const scrollOffset = this.currentStep * STEP - targetX + CIRCLE_R;
+
+        for (let i = 0; i < this.targetNotes.length; i++) {
+            const note = this.targetNotes[i];
+            const baseNote = note.replace(/[0-9]/g, '').replace('#', '#');
+            const noteLetter = note.includes('#') ? note.slice(0, 2) : note[0];
+            const color = SongVisualizer.NOTE_COLORS[noteLetter] || '#888';
+
+            const cx = i * STEP + CIRCLE_R - scrollOffset;
+            const cy = ROW_Y;
+
+            // Skip if off screen
+            if (cx + CIRCLE_R < -10 || cx - CIRCLE_R > W + 10) continue;
+
+            const isDone = i < this.currentStep;
+            const isCurrent = i === this.currentStep;
+            const isFuture = i > this.currentStep;
+
+            ctx.save();
+
+            if (isCurrent) {
+                // Pulse: grow slightly in and out
+                const pulse = 1 + Math.sin(this.animFrame * 0.12) * 0.12;
+                const r = CIRCLE_R * pulse;
+
+                // Outer glow ring
+                ctx.beginPath();
+                ctx.arc(cx, cy, r + 10, 0, Math.PI * 2);
+                ctx.fillStyle = color + '44';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+                ctx.fillStyle = color + '88';
+                ctx.fill();
+
+                // Main circle
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                // Arrow below pointing UP at the current note
+                const arrowY = cy + r + 18 + Math.sin(this.animFrame * 0.12) * 5;
+                ctx.fillStyle = '#FFE66D';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy + r + 4);
+                ctx.lineTo(cx - 10, arrowY);
+                ctx.lineTo(cx + 10, arrowY);
+                ctx.closePath();
+                ctx.fill();
+
+            } else if (isDone) {
+                // Faded with checkmark
+                ctx.beginPath();
+                ctx.arc(cx, cy, CIRCLE_R * 0.8, 0, Math.PI * 2);
+                ctx.fillStyle = color + '55';
+                ctx.fill();
+
+                // Checkmark
+                ctx.strokeStyle = '#51E898';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(cx - CIRCLE_R * 0.3, cy);
+                ctx.lineTo(cx - CIRCLE_R * 0.05, cy + CIRCLE_R * 0.3);
+                ctx.lineTo(cx + CIRCLE_R * 0.4, cy - CIRCLE_R * 0.3);
+                ctx.stroke();
+
+            } else {
+                // Future note — dimmed
+                ctx.beginPath();
+                ctx.arc(cx, cy, CIRCLE_R * 0.75, 0, Math.PI * 2);
+                ctx.fillStyle = color + '33';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, CIRCLE_R * 0.75, 0, Math.PI * 2);
+                ctx.strokeStyle = color + '66';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // Progress text in bottom-left
+        if (this.targetNotes.length > 0) {
+            const pct = Math.round((this.currentStep / this.targetNotes.length) * 100);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${this.currentStep} / ${this.targetNotes.length}`, 12, H - 10);
+        }
     }
 }
