@@ -4,56 +4,123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="piano.css">
-    <link href="https://fonts.googleapis.com/css2?family=Acme&family=Carter+One&family=Poppins&family=Roboto&family=Roboto+Slab&family=Rubik:wght@500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" 
-    integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" 
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <title>Play Piano</title>
+    <title>Paul's Piano - Learn Music with Your Voice</title>
 </head>
 <body>
-    <header class="top-bar">
-        <div>🎶 Play Piano 🎶</div>
-    </header>
-    <div class="container">
-        <header>
-            <p>Casio 2.0</p>
-            <div class="top-container">
-                <div>
-                    <label for="volume">Volume</label> 
-                    <input id="volume" type="range" value="15" min="1" max="30">
-                </div>  
-                <div id="mode"><span>Mode</span></div>
-            </div>    
+    <div class="app-container">
+        <!-- Header with mic and settings -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">Paul's Piano 🎹</h1>
+            </div>
+            <div class="header-right">
+                <button id="mic-toggle" class="header-btn mic-btn" title="Toggle Microphone">
+                    🎤
+                </button>
+                <button id="settings-toggle" class="header-btn settings-btn" title="Settings (hold 3 seconds)">
+                    ⚙️
+                </button>
+            </div>
         </header>
-        <ul class="key-container">
-            <li class="key white" data-key="a"><span>a</span></li>
-            <li class="key black" data-key="w"><span>w</span></li>
-            <li class="key white" data-key="s"><span>s</span></li>
-            <li class="key black" data-key="e"><span>e</span></li>
-            <li class="key white" data-key="d"><span>d</span></li>
-            <li class="key white" data-key="f"><span>f</span></li>
-            <li class="key black" data-key="t"><span>t</span></li>
-            <li class="key white" data-key="g"><span>g</span></li>
-            <li class="key black" data-key="y"><span>y</span></li>
-            <li class="key white" data-key="n"><span>n</span></li>
-            <li class="key black" data-key="u"><span>u</span></li>
-            <li class="key white" data-key="j"><span>j</span></li>
-            <li class="key white" data-key="k"><span>k</span></li>
-            <li class="key black" data-key="o"><span>o</span></li>
-            <li class="key white" data-key="l"><span>l</span></li>
-            <li class="key black" data-key="q"><span>q</span></li>
-            <li class="key white" data-key="x"><span>x</span></li>
-            <li class="key black" data-key="z"><span>z</span></li>
-            <li class="key white" data-key="c"><span>c</span></li>
-            <li class="key white" data-key="v"><span>v</span></li>
-            <li class="key black" data-key="m"><span>m</span></li>
-            <li class="key white" data-key=";"><span>;</span></li>
-            <li class="key black" data-key="r"><span>r</span></li>
-            <li class="key white" data-key="."><span>.</span></li>
-        </ul>
-        <div class="footer" >© Aditya Utekar ,2023</div>
+
+        <!-- Song Timeline Visualizer - Top of screen -->
+        <section class="timeline-section">
+            <canvas id="timeline-canvas" class="timeline-canvas"></canvas>
+        </section>
+
+        <!-- Colorful Piano Keyboard - Bottom of screen -->
+        <section class="piano-section">
+            <ul class="piano-keys" id="piano-keys">
+                <li class="key white" data-note="C4" data-key="a"></li>
+                <li class="key black" data-note="C#4" data-key="w"></li>
+                <li class="key white" data-note="D4" data-key="s"></li>
+                <li class="key black" data-note="D#4" data-key="e"></li>
+                <li class="key white" data-note="E4" data-key="d"></li>
+                <li class="key white" data-note="F4" data-key="f"></li>
+                <li class="key black" data-note="F#4" data-key="t"></li>
+                <li class="key white" data-note="G4" data-key="g"></li>
+                <li class="key black" data-note="G#4" data-key="y"></li>
+                <li class="key white" data-note="A4" data-key="n"></li>
+                <li class="key black" data-note="A#4" data-key="u"></li>
+                <li class="key white" data-note="B4" data-key="j"></li>
+                <li class="key white" data-note="C5" data-key="k"></li>
+                <li class="key black" data-note="C#5" data-key="o"></li>
+                <li class="key white" data-note="D5" data-key="l"></li>
+                <li class="key black" data-note="D#5" data-key="q"></li>
+                <li class="key white" data-note="E5" data-key="x"></li>
+                <li class="key white" data-note="F5" data-key="z"></li>
+                <li class="key black" data-note="F#5" data-key="c"></li>
+                <li class="key white" data-note="G5" data-key="v"></li>
+                <li class="key black" data-note="G#5" data-key="m"></li>
+                <li class="key white" data-note="A5" data-key=";"></li>
+                <li class="key black" data-note="A#5" data-key="r"></li>
+                <li class="key white" data-note="B5" data-key="."></li>
+            </ul>
+        </section>
+
+        <!-- Bottom Navigation Bar -->
+        <footer class="app-footer">
+            <button id="home-btn" class="footer-btn" title="Home">
+                🏠
+            </button>
+            <button id="playback-btn" class="footer-btn" title="Play Back Recording">
+                ▶️
+            </button>
+            <button id="songs-btn" class="footer-btn" title="Song Picker">
+                📚
+            </button>
+        </footer>
     </div>
-    <script src="script2.js"></script>
+
+    <!-- Song Picker Modal (Full Screen) -->
+    <div id="song-picker-modal" class="modal hidden">
+        <div class="modal-content song-picker-content">
+            <button class="modal-close">✕</button>
+            <h2 class="modal-title">Pick a Song!</h2>
+            <div id="song-grid" class="song-grid">
+                <!-- Songs will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Celebration Screen (Full Screen Overlay) -->
+    <div id="celebration-screen" class="celebration-screen hidden">
+        <div class="celebration-content">
+            <div class="confetti-container" id="confetti"></div>
+            <h1 class="celebration-title">🎉 AMAZING! 🎉</h1>
+            <p id="celebration-song-name" class="celebration-text"></p>
+            <p id="celebration-score" class="celebration-score"></p>
+            <div class="celebration-buttons">
+                <button id="hear-btn" class="celebration-btn">
+                    ▶️ Hear It
+                </button>
+                <button id="again-btn" class="celebration-btn">
+                    🔄 Again
+                </button>
+                <button id="new-song-btn" class="celebration-btn">
+                    📚 New Song
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parent Mode Settings Panel (Modal) -->
+    <div id="parent-mode-modal" class="modal hidden">
+        <div class="modal-content parent-mode-content">
+            <button class="modal-close">✕</button>
+            <h2 class="modal-title">Parent Settings</h2>
+            <div class="settings-group">
+                <label>Volume</label>
+                <input id="volume-control" type="range" min="0" max="1" step="0.1" value="0.5">
+            </div>
+            <div class="settings-group">
+                <label>Microphone Sensitivity</label>
+                <input id="sensitivity-control" type="range" min="0" max="100" step="10" value="50">
+            </div>
+            <button id="close-parent-mode" class="settings-close-btn">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
 </body>
 </html>
-

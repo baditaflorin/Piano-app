@@ -1,134 +1,141 @@
-const pianokeys = document.querySelectorAll(".key-container .key");
-const volumecontrol = document.getElementById("volume");
-//mouse click press
-for (var i=0; i<pianokeys.length;i++){
-    document.querySelectorAll(".key-container .key")[i].addEventListener("click", function (){
-        var charval = this.innerHTML;
-        makesound(charval);
-        animate(charval);
+/**
+ * Main App Entry Point
+ * Coordinates between modules
+ */
 
-    });
-    
-}
+import { PitchEngine } from './pitch-engine.js';
+import { AudioManager } from './audio-manager.js';
+import { SongManager, SONGS } from './song-manager.js';
+import { UIManager } from './ui-manager.js';
 
- //keyboard key button press   
-document.addEventListener("keydown", function(event){
-    makesound(event.key);
-    animate(event.key);
-});
-
-
-function makesound(key){
-    switch (key){
-        case "a":
-            var a =  new Audio("audio/a.mp3");
-            a.play();
-            break;
-        case "b":
-            var b =  new Audio("audio/b.mp3");
-            b.play();
-            break;
-        case "c":
-            var c =  new Audio("audio/c.mp3");
-            c.play();
-            break;
-        case "d":
-            var d =  new Audio("audio/d.mp3");
-            d.play();
-            break;
-        case "e":
-            var e =  new Audio("audio/e.mp3");
-            e.play();
-            break;
-        case "f":
-            var f =  new Audio("audio/f.mp3");
-            f.play();
-            break;
-        case "g":
-            var g =  new Audio("audio/g.mp3");
-            g.play();
-            break;
-        case "j":
-            var j =  new Audio("audio/j.mp3");
-            j.play();
-            break;
+class PianoApp {
+    constructor() {
+        this.pitchEngine = new PitchEngine();
+        this.audioManager = new AudioManager();
+        this.songManager = new SongManager();
+        this.uiManager = new UIManager();
         
-        case "k":
-            var k =  new Audio("audio/k.mp3");
-            k.play();
-            break;
-        case "l":
-            var l =  new Audio("audio/l.mp3");
-            l.play();
-            break;
-        case "m":
-            var m =  new Audio("audio/m.mp3");
-            m.play();
-            break;
-        case "n":
-            var n =  new Audio("audio/n.mp3");
-            n.play();
-            break;
-        case "o":
-            var o =  new Audio("audio/o.mp3");
-            o.play();
-            break;
-        case "q":
-            var q =  new Audio("audio/q.mp3");
-            q.play();
-            break;
-        case "r":
-            var r =  new Audio("audio/r.mp3");
-            r.play();
-            break;
-        case "s":
-            var s =  new Audio("audio/s.mp3");
-            s.play();
-            break;
-        case "t":
-            var t =  new Audio("audio/t.mp3");
-            t.play();
-            break;
-        case "v":
-            var v =  new Audio("audio/v.mp3");
-            v.play();
-            break;
-        case "w":
-            var w =  new Audio("audio/w.mp3");
-            w.play();
-            break;
-        case "x":
-            var x =  new Audio("audio/x.mp3");
-            x.play();
-            break;
-        case "y":
-            var y =  new Audio("audio/y.mp3");
-            y.play();
-            break;
-        case "z":
-            var z =  new Audio("audio/z.mp3");
-            z.play();
-            break;
-        case ";":
-            var col =  new Audio("audio/;.mp3");
-            col.play();
-            break;
-        case ".":
-            var aa =  new Audio("audio/aa.mp3");
-            aa.play();
-            break;
+        this.isMicActive = false;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.loop();
+        console.log("Piano Pro Initialized!");
+    }
+
+    setupEventListeners() {
+        // Keyboard inputs
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            const keyEl = document.querySelector(`[data-key="${key}"]`);
+            if (keyEl) this.handleNoteInput(keyEl.dataset.note);
+        });
+
+        // Mouse inputs
+        this.uiManager.keys.forEach(key => {
+            key.addEventListener('mousedown', () => this.handleNoteInput(key.dataset.note));
+        });
+
+        // Mic Toggle
+        this.uiManager.micToggle.addEventListener('click', () => this.toggleMicrophone());
+
+        // Song Selection
+        this.uiManager.songButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.startSong(btn.dataset.song, btn));
+        });
+
+        // Volume
+        this.uiManager.volumeControl.addEventListener('input', (e) => {
+            this.audioManager.setVolume(e.target.value);
+        });
+
+        // Listen Button
+        this.uiManager.playPreviewBtn.addEventListener('click', () => this.playSongPreview());
+    }
+
+    async toggleMicrophone() {
+        if (!this.isMicActive) {
+            try {
+                await this.pitchEngine.start();
+                this.isMicActive = true;
+                this.pitchEngine.onNoteDetected = (note, freq, midi) => this.onMicNote(note, freq, midi);
+            } catch (e) {
+                alert("Microphone access denied.");
+            }
+        } else {
+            this.pitchEngine.stop();
+            this.isMicActive = false;
+            this.uiManager.setNote('--');
+        }
+        this.uiManager.updateMicUI(this.isMicActive);
+    }
+
+    onMicNote(noteName, frequency, midi) {
+        this.uiManager.setNote(noteName);
+        const keyEl = document.querySelector(`[data-note="${noteName}"]`);
+        if (keyEl) {
+            this.uiManager.animateKey(noteName, 'listening');
+            this.handleNoteInput(noteName, true); // True means triggered by mic
+        }
+    }
+
+    handleNoteInput(note, fromMic = false) {
+        if (!fromMic) {
+            this.audioManager.playSound(note);
+            this.uiManager.animateKey(note);
+        }
+        
+        const result = this.songManager.checkProgress(note);
+        if (result.status === 'next') {
+            this.uiManager.setTargetNote(result.nextTarget, this.songManager.getProgressPercentage());
+        } else if (result.status === 'complete') {
+            alert("Victory! Song Complete.");
+            this.startSong('free');
+        }
+    }
+
+    startSong(songId, btnEl) {
+        if (btnEl) {
+            this.uiManager.songButtons.forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+        }
+        
+        const firstNote = this.songManager.startSong(songId);
+        
+        if (this.songManager.isFreePlay()) {
+            this.uiManager.setMode("Free Play", false);
+            this.uiManager.setTargetNote(null, 0);
+        } else {
+            this.uiManager.setMode("Learning Mode", true);
+            this.uiManager.setTargetNote(firstNote, 0);
+        }
+    }
+
+    async playSongPreview() {
+        const songId = this.songManager.currentSongId;
+        const songData = SONGS[songId];
+        if (!songData) return;
+
+        this.uiManager.playPreviewBtn.disabled = true;
+        this.uiManager.playPreviewBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Playing...';
+
+        for (const note of songData) {
+            this.audioManager.playSound(note);
+            this.uiManager.animateKey(note);
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        this.uiManager.playPreviewBtn.disabled = false;
+        this.uiManager.playPreviewBtn.innerHTML = '<i class="fas fa-play"></i> Listen';
+    }
+
+    loop() {
+        this.uiManager.drawVisualizer(this.isMicActive, this.pitchEngine.analyser);
+        requestAnimationFrame(() => this.loop());
     }
 }
 
-function animate(key){
-    const pressedkey = document.querySelector(`[data-key="${key}"]`);
-    pressedkey.classList.add("active");
-    setTimeout(() => {
-        pressedkey.classList.remove("active");
-    }, 150);
-}
-const controlvolume = (e) => {
-    s.volume = e.target.value;
-}
-
-volumecontrol.addEventListener("input", controlvolume);
+// Start Application
+new PianoApp();
