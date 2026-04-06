@@ -234,8 +234,8 @@ class PianoApp {
     const held   = Date.now() - this._holdStart;
     const needed = this._holdDurationMs;
 
-    if (held >= needed * 0.55) {
-      // Held long enough (55% threshold) — accept and advance
+    if (held >= needed * 0.75) {
+      // Held long enough (75% of target) — accept and advance
       this._completeHold();
     } else {
       // Released too early — cancel, let Paul try again
@@ -256,8 +256,8 @@ class PianoApp {
     // Show the fill bar rising inside the key
     this.uiManager.startHoldFill(note, this._holdDurationMs);
 
-    // Auto-advance when full
-    this._holdTimer = setTimeout(() => this._completeHold(), this._holdDurationMs);
+    // No auto-advance — Paul must release the key to trigger completion.
+    // The fill bar reaching 100% is the visual cue to release.
   }
 
   private _completeHold(): void {
