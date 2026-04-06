@@ -218,6 +218,14 @@ body {
     50%       { opacity: 0.65; }
 }
 
+/* Brief green flash when note is correctly hit */
+.key.correct {
+    background: #51E898 !important;
+    box-shadow: 0 0 32px #51E898, 0 0 64px #51E89888 !important;
+    transform: translateY(4px) !important;
+    transition: none !important;
+}
+
 @keyframes keyPress {
     0% { transform: translateY(0); }
     40% { transform: translateY(4px); }

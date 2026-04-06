@@ -184,7 +184,9 @@ class PianoApp {
         if (!target) return;
 
         if (note === target.note) {
-            // Correct note!
+            // Correct note! Flash green feedback regardless of what comes next
+            this.uiManager.flashCorrect(note);
+
             this.currentStep++;
 
             // Update visualizer step
@@ -198,9 +200,15 @@ class PianoApp {
                 this.uiManager.clearAllHighlights();
                 this.showCelebration(this.currentSong.title, 100);
             } else {
-                // Highlight the next target key on the piano
                 const nextNote = notes[this.currentStep].note;
-                this.uiManager.highlightNote(nextNote);
+                if (nextNote === note) {
+                    // Same note again — briefly clear then re-highlight so Paul
+                    // can see something happened
+                    this.uiManager.clearAllHighlights();
+                    setTimeout(() => this.uiManager.highlightNote(nextNote), 220);
+                } else {
+                    this.uiManager.highlightNote(nextNote);
+                }
             }
         }
         // Wrong notes are silently ignored — no punishment for Paul

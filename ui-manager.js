@@ -136,6 +136,14 @@ export class UIManager {
         setTimeout(() => keyEl.classList.remove(type), 350);
     }
 
+    flashCorrect(note) {
+        const keyEl = document.querySelector(`[data-note="${note}"]`);
+        if (!keyEl) return;
+        keyEl.classList.remove('target');
+        keyEl.classList.add('correct');
+        setTimeout(() => keyEl.classList.remove('correct'), 200);
+    }
+
     updateMicUI(isActive) {
         this.micToggle.style.opacity = isActive ? '1' : '0.5';
         this.micToggle.textContent = isActive ? '🎤' : '🎙️';
