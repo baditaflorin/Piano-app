@@ -61,4 +61,5 @@ export type EventMap = {
   'playback:start': Record<string, never>;
   'playback:end': Record<string, never>;
   'playback:tick': { currentTime: number; totalTime: number };
+  'song:complete': { score: number; correctNotes: number; totalNotes: number };
 };
