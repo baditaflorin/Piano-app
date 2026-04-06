@@ -1,0 +1,22 @@
+{
+  "name": "piano-app",
+  "version": "1.0.0",
+  "description": "This repository contains the source code for a simple Piano WebApp created using HTML, CSS, and JavaScript.",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "pitchy": "^4.1.0"
+  }
+}

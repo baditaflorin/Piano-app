@@ -1,17 +1,36 @@
-# Piano Pro Makefile
-# Simplifies common development tasks
+NODE = $(HOME)/.nvm/versions/node/v20.20.2/bin/node
+NPX  = $(HOME)/.nvm/versions/node/v20.20.2/bin/npx
 
-.PHONY: help serve clean
+.PHONY: build serve clean
 
-help:
-	@echo "Piano Pro Development Commands:"
-	@echo "  make serve    - Start the local development server (port 3000)"
-	@echo "  make clean    - Currently no-op (placeholder for future build steps)"
-	@echo "  make help     - Show this help message"
+build:
+	$(NPX) esbuild src/app.ts \
+		--bundle \
+		--format=esm \
+		--outfile=dist/app.js \
+		--sourcemap \
+		--platform=browser \
+		--target=es2020
 
-serve:
-	@echo "Starting Paul's Piano server on http://localhost:3000/piano.html..."
-	npx -y serve . -l 3000
+serve: build
+	@echo "Starting Paul's Piano at http://localhost:3000/piano.html"
+	$(NPX) serve . -l 3000
+
+watch:
+	$(NPX) esbuild src/app.ts \
+		--bundle \
+		--format=esm \
+		--outfile=dist/app.js \
+		--sourcemap \
+		--platform=browser \
+		--target=es2020 \
+		--watch
 
 clean:
-	@echo "No temporary files to clean."
+	rm -rf dist/
+
+help:
+	@echo "make build  - compile TypeScript"
+	@echo "make serve  - build and start server"
+	@echo "make watch  - watch and rebuild on changes"
+	@echo "make clean  - remove dist/"
