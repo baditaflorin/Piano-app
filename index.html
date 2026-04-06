@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="piano.css">
+    <title>Paul's Piano - Learn Music with Your Voice</title>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with mic and settings -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">Paul's Piano 🎹</h1>
+            </div>
+            <div class="header-right">
+                <button id="mic-toggle" class="header-btn mic-btn" title="Toggle Microphone">
+                    🎤
+                </button>
+                <button id="settings-toggle" class="header-btn settings-btn" title="Settings (hold 3 seconds)">
+                    ⚙️
+                </button>
+            </div>
+        </header>
+
+        <!-- Song Timeline Visualizer - Top of screen -->
+        <section class="timeline-section">
+            <canvas id="timeline-canvas" class="timeline-canvas"></canvas>
+            <!-- Free-play mic visualizer (shown only in free-play mode) -->
+            <div id="freeplay-viz" style="display:none">
+                <span class="freeplay-note-name"></span>
+            </div>
+        </section>
+
+        <!-- Colorful Piano Keyboard - Bottom of screen -->
+        <section class="piano-section">
+            <ul class="piano-keys" id="piano-keys">
+                <li class="key white" data-note="C4" data-key="a"></li>
+                <li class="key black" data-note="C#4" data-key="w"></li>
+                <li class="key white" data-note="D4" data-key="s"></li>
+                <li class="key black" data-note="D#4" data-key="e"></li>
+                <li class="key white" data-note="E4" data-key="d"></li>
+                <li class="key white" data-note="F4" data-key="f"></li>
+                <li class="key black" data-note="F#4" data-key="t"></li>
+                <li class="key white" data-note="G4" data-key="g"></li>
+                <li class="key black" data-note="G#4" data-key="y"></li>
+                <li class="key white" data-note="A4" data-key="n"></li>
+                <li class="key black" data-note="A#4" data-key="u"></li>
+                <li class="key white" data-note="B4" data-key="j"></li>
+                <li class="key white" data-note="C5" data-key="k"></li>
+                <li class="key black" data-note="C#5" data-key="o"></li>
+                <li class="key white" data-note="D5" data-key="l"></li>
+                <li class="key black" data-note="D#5" data-key="q"></li>
+                <li class="key white" data-note="E5" data-key="x"></li>
+                <li class="key white" data-note="F5" data-key="z"></li>
+                <li class="key black" data-note="F#5" data-key="c"></li>
+                <li class="key white" data-note="G5" data-key="v"></li>
+                <li class="key black" data-note="G#5" data-key="m"></li>
+                <li class="key white" data-note="A5" data-key=";"></li>
+                <li class="key black" data-note="A#5" data-key="r"></li>
+                <li class="key white" data-note="B5" data-key="."></li>
+            </ul>
+        </section>
+
+        <!-- Bottom Navigation Bar -->
+        <footer class="app-footer">
+            <button id="home-btn" class="footer-btn" title="Home">
+                🏠
+            </button>
+            <button id="playback-btn" class="footer-btn" title="Play Back Recording">
+                ▶️
+            </button>
+            <button id="songs-btn" class="footer-btn" title="Song Picker">
+                📚
+            </button>
+            <label id="voice-piano-label" class="footer-voice-toggle" title="Experimental: sing to play piano">
+                <input type="checkbox" id="voice-piano-toggle">
+                <span>🎤🎹</span>
+            </label>
+        </footer>
+    </div>
+
+    <!-- Song Picker Modal (Full Screen) -->
+    <div id="song-picker-modal" class="modal hidden">
+        <div class="modal-content song-picker-content">
+            <button class="modal-close">✕</button>
+            <h2 class="modal-title">Pick a Song!</h2>
+            <div id="song-grid" class="song-grid">
+                <!-- Songs will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Celebration Screen (Full Screen Overlay) -->
+    <div id="celebration-screen" class="celebration-screen hidden">
+        <div class="celebration-content">
+            <div class="confetti-container" id="confetti"></div>
+            <h1 class="celebration-title">🎉 AMAZING! 🎉</h1>
+            <p id="celebration-song-name" class="celebration-text"></p>
+            <p id="celebration-score" class="celebration-score"></p>
+            <div class="celebration-buttons">
+                <button id="hear-btn" class="celebration-btn">
+                    ▶️ Hear It
+                </button>
+                <button id="again-btn" class="celebration-btn">
+                    🔄 Again
+                </button>
+                <button id="new-song-btn" class="celebration-btn">
+                    📚 New Song
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parent Mode Settings Panel (Modal) -->
+    <div id="parent-mode-modal" class="modal hidden">
+        <div class="modal-content parent-mode-content">
+            <button class="modal-close">✕</button>
+            <h2 class="modal-title">Parent Settings</h2>
+            <div class="settings-group">
+                <label>Volume</label>
+                <input id="volume-control" type="range" min="0" max="1" step="0.1" value="0.5">
+            </div>
+            <div class="settings-group">
+                <label>Microphone Sensitivity</label>
+                <input id="sensitivity-control" type="range" min="0" max="100" step="10" value="50">
+            </div>
+            <div class="settings-group">
+                <label>Low Frequency Filter — <span id="freq-min-label">130 Hz (C3)</span></label>
+                <input id="freq-min-control" type="range" min="80" max="800" step="10" value="130">
+            </div>
+            <div class="settings-group">
+                <label>High Frequency Filter — <span id="freq-max-label">2093 Hz (C7)</span></label>
+                <input id="freq-max-control" type="range" min="500" max="2200" step="10" value="2093">
+            </div>
+            <button id="close-parent-mode" class="settings-close-btn">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="dist/app.js"></script>
+</body>
+</html>

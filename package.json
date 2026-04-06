@@ -17,6 +17,7 @@
     "typescript": "^6.0.2"
   },
   "dependencies": {
+    "audiomotion-analyzer": "^4.5.4",
     "pitchy": "^4.1.0"
   }
 }
