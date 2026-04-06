@@ -12,6 +12,7 @@ import { RecordingManager }           from './recording-manager';
 import { SongVisualizer }             from './song-visualizer';
 import { UIManager }                  from './ui-manager';
 import { SongProgressionController }  from './song-progression-controller';
+import { MicVisualizer }              from './mic-visualizer';
 import { EventMap }                   from './types';
 
 // ── EventBus ─────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ class PianoApp {
   private readonly visualizer:   SongVisualizer;
   private readonly ui:           UIManager;
   private readonly progression:  SongProgressionController;
+  private readonly micViz:       MicVisualizer;
 
   private isMicActive    = false;
   private currentSongId  = 'free';
@@ -62,6 +64,10 @@ class PianoApp {
     );
     this.ui          = new UIManager(this.bus, this.audio);
     this.progression = new SongProgressionController(this.bus, this.ui);
+    this.micViz      = new MicVisualizer(
+      document.getElementById('freeplay-viz') as HTMLElement,
+      this.bus,
+    );
 
     void this.init();
   }
@@ -149,7 +155,18 @@ class PianoApp {
       ? null
       : (this.library.getSong(songId) ?? null);
 
-    if (song) this.visualizer.setSong(song);
+    if (song) {
+      this.visualizer.setSong(song);
+      this.micViz.hide();
+    } else {
+      // Free play — show mic visualizer if mic is already running
+      const analyser = this.pitch.getAnalyserNode();
+      const ctx      = this.pitch.getAudioContext();
+      if (analyser && ctx) {
+        this.micViz.connect(analyser, ctx);
+        this.micViz.show();
+      }
+    }
 
     // Hand off to progression controller — it handles highlight + step reset
     this.progression.selectSong(song);
@@ -166,6 +183,13 @@ class PianoApp {
         this.isMicActive = true;
         this.recorder.startRecording();
         this.ui.updateMicUI(true);
+        // Connect mic visualizer once audio graph is live
+        const analyser = this.pitch.getAnalyserNode();
+        const ctx      = this.pitch.getAudioContext();
+        if (analyser && ctx && this.currentSongId === 'free') {
+          this.micViz.connect(analyser, ctx);
+          this.micViz.show();
+        }
       } catch (err) {
         const msg = err instanceof DOMException && err.name === 'NotAllowedError'
           ? 'Please allow microphone access in your browser settings.'
@@ -187,6 +211,7 @@ class PianoApp {
     this.pitch.stop();
     this.isMicActive = false;
     this.ui.updateMicUI(false);
+    this.micViz.hide();
 
     const songTitle = this.library.getSong(this.currentSongId)?.title ?? 'the song';
     this.ui.showCelebration(songTitle, score);

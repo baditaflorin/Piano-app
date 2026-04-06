@@ -90,6 +90,10 @@ export class PitchEngine {
     console.log('[PitchEngine] Started (pitchy/McLeod Pitch Method)');
   }
 
+  /** Expose internals so a downstream visualizer can tap into the live audio graph. */
+  getAudioContext(): AudioContext | null { return this._ctx; }
+  getAnalyserNode(): AnalyserNode | null  { return this._analyser; }
+
   stop(): void {
     this.isListening = false;
     if (this._rafId !== null) cancelAnimationFrame(this._rafId);
