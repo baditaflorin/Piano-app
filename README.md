@@ -1,44 +1,57 @@
-# Paul's Piano
+# Paul's Piano 🎹
 
-A microphone-first piano learning app built for **Paul**, a 5-year-old learning to play piano.
+> A microphone-first piano learning app — just play your real piano and the app follows along.
 
-Play a real piano (or sing) into the microphone — the app listens, detects the pitch in real time, and guides you through songs step by step.
-
----
-
-## Fork
-
-This is a fork of [Adityautekar/Piano-app](https://github.com/Adityautekar/Piano-app) — originally a simple browser piano toy built with HTML, CSS, and JavaScript.
-
-**Fork author:** Florin Badita — [baditaflorin@gmail.com](mailto:baditaflorin@gmail.com)
-**Built for:** Paul (age 5)
-
-The fork rewrites the app from the ground up as a mic-first music learning tool with real-time pitch detection, song progression, and a piano-roll visualizer.
+**Live demo → [baditaflorin.github.io/Piano-app](https://baditaflorin.github.io/Piano-app)**
 
 ---
 
-## What's new in this fork
+## The story
 
-| Original | This fork |
-|---|---|
-| Click keys to play sounds | Real piano mic input drives the whole app |
-| No songs / learning mode | Guided song mode with step-by-step progression |
-| Plain JS | TypeScript + esbuild, modular architecture |
-| No visualizer | Piano-roll timeline + free-play spectrum visualizer |
-| No pitch detection | McLeod Pitch Method via [pitchy](https://github.com/ianprime0509/pitchy) |
-| No note colours | Synesthesia colour system (C=red … B=purple) |
+My son **Paul** (5 years old) is learning piano. Most learning apps expect you to tap a screen or click with a mouse. I wanted something different: put a microphone next to the piano, play a real key, and have the app react — no clicking required.
+
+This is what I built for him on weekends.
+
+---
+
+## Built by
+
+**Florin Badita**
+[Forbes 30 Under 30](https://www.forbes.com/profile/florin-badita/) · Dad · Open-source builder
+[baditaflorin@gmail.com](mailto:baditaflorin@gmail.com) · [github.com/baditaflorin](https://github.com/baditaflorin)
+
+---
+
+## Forked from
+
+[Adityautekar/Piano-app](https://github.com/Adityautekar/Piano-app) — a clean browser piano toy (HTML/CSS/JS, click keys to play notes). I kept the visual keyboard layout and rebuilt everything else from scratch in TypeScript.
+
+---
+
+## How it works
+
+1. Open the app, grant microphone access
+2. Pick a song from the library (Twinkle Twinkle, Happy Birthday, …)
+3. The app highlights the next key to press — glowing in its synesthesia colour
+4. Play that note on a real piano — the mic detects the pitch and advances the song
+5. The piano-roll scrolls, completed notes get a green tick, wrong notes show in red
+
+No clicking needed. Paul just plays.
 
 ---
 
 ## Features
 
-- **Mic-first** — plays along as Paul presses real piano keys; the app detects pitch and advances the song automatically
-- **Song library** — Twinkle Twinkle, Happy Birthday, and more; pick a song and follow the glowing key
-- **Piano-roll visualizer** — horizontal note blocks scroll in real time; completed notes show a green tick
-- **Free-play spectrum** — radial frequency visualizer powered by [audioMotion-analyzer](https://audiomotion.dev) with synesthesia colours; big note name flashes on detection
-- **Keyboard & mouse fallback** — click keys or press keyboard shortcuts if no mic is available
-- **Parent settings** — frequency range sliders to filter out adult voices, volume control, voice-piano mode (mic → synth sound)
-- **No audio files** — all piano sounds synthesised in the browser via Web Audio API (harmonics + ADSR)
+| | |
+|---|---|
+| 🎤 **Mic-first** | Real piano → mic → pitch detection → song advances automatically |
+| 🎵 **Song library** | Twinkle Twinkle, Happy Birthday, more — easy to add new songs in JSON |
+| 🎼 **Piano-roll** | Horizontal note blocks scroll in sync; correct/wrong overlays |
+| 🌈 **Synesthesia colours** | Every note has a fixed colour (C=red, D=orange … B=purple) |
+| 🔵 **Free-play spectrum** | Radial audioMotion-analyzer visualizer when no song is active |
+| 🎹 **Keyboard fallback** | Click keys or use computer keyboard if no mic available |
+| ⚙️ **Parent settings** | Frequency range sliders (filter out adult voices), volume, voice-piano mode |
+| 🔇 **No audio files** | All sounds synthesised via Web Audio API — nothing to download |
 
 ---
 
@@ -50,20 +63,18 @@ cd Piano-app
 npm install
 ```
 
-### Build
-
+**Build:**
 ```bash
 npx esbuild src/app.ts --bundle --format=esm --outfile=dist/app.js --sourcemap --platform=browser --target=es2020
 ```
 
-### Run
-
+**Run locally:**
 ```bash
 npx serve . -l 3001
-# then open http://localhost:3001/piano.html
+# open http://localhost:3001/piano.html
 ```
 
-> Allow microphone access when the browser asks — the whole app is designed around it.
+> Allow microphone access — the app is designed around it.
 
 ---
 
@@ -71,42 +82,49 @@ npx serve . -l 3001
 
 ```
 src/
-  app.ts                       # Pure wiring — no game logic
-  song-progression-controller.ts  # Step tracking, note matching, advancement
-  pitch-engine.ts              # McLeod Pitch Method (pitchy), mic setup
-  mic-visualizer.ts            # audioMotion-analyzer free-play spectrum
-  song-visualizer.ts           # Canvas piano-roll for song mode
-  audio-manager.ts             # Web Audio API piano synthesis
-  ui-manager.ts                # DOM, key highlights, hold fill
-  song-library.ts              # Loads songs from songs/bundled.json
-  recording-manager.ts         # Note recording & playback
-  types.ts                     # Shared types & EventMap
+  app.ts                          Pure wiring — no game logic
+  song-progression-controller.ts  Step tracking, note matching, advancement
+  pitch-engine.ts                 McLeod Pitch Method (pitchy), mic capture
+  mic-visualizer.ts               audioMotion-analyzer free-play spectrum
+  song-visualizer.ts              Canvas piano-roll for song mode
+  audio-manager.ts                Web Audio API piano synthesis (harmonics + ADSR)
+  ui-manager.ts                   DOM, key highlights, hold-fill bar
+  song-library.ts                 Loads songs/bundled.json
+  recording-manager.ts            Note recording & playback
+  types.ts                        Shared types & typed EventBus EventMap
+
 songs/
-  bundled.json                 # Song data (note, duration, bpm)
+  bundled.json                    Song data — { note, duration, bpm }
 ```
 
-Each module has a single responsibility. Modules communicate exclusively through a typed `EventBus` — no direct cross-module calls except for construction-time dependency injection.
+All modules communicate through a typed `EventBus`. No direct cross-module calls except constructor injection. Each module has one job.
 
 ---
 
 ## Tech stack
 
-| Library | Purpose |
+| | |
 |---|---|
-| [pitchy](https://github.com/ianprime0509/pitchy) | McLeod Pitch Method — real-time mic pitch detection |
-| [audioMotion-analyzer](https://audiomotion.dev) | Production-grade audio spectrum / radial visualizer |
-| TypeScript + esbuild | Type safety, fast bundling |
+| [pitchy](https://github.com/ianprime0509/pitchy) | McLeod Pitch Method — accurate real-time pitch detection |
+| [audioMotion-analyzer](https://audiomotion.dev) | Production audio spectrum / radial visualizer |
+| TypeScript + esbuild | Type safety, ~140 KB bundle |
 | Web Audio API | Piano synthesis, mic capture |
 | Canvas 2D | Piano-roll renderer |
+| GitHub Actions + Pages | CI/CD — every push to master auto-deploys the live demo |
+
+---
+
+## Deployment
+
+The live demo is auto-deployed on every push to `master` via GitHub Actions (see `.github/workflows/deploy.yml`). The workflow installs dependencies, builds the TypeScript bundle with esbuild, and deploys the static output to GitHub Pages.
 
 ---
 
 ## Original project
 
-> **Piano WebApp** by [Adityautekar](https://github.com/Adityautekar/Piano-app)
-> Simple browser piano — click keys or use keyboard to play notes.
-> Technologies: HTML, CSS, JavaScript.
+> **Piano WebApp** — [Adityautekar](https://github.com/Adityautekar/Piano-app)
+> Simple browser piano. Click keys or use keyboard to play. HTML/CSS/JS.
 
 ---
 
-Happy playing, Paul! 🎹
+*Made with ☕ and a lot of patience during Paul's nap time.*
