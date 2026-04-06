@@ -1,133 +1,114 @@
 /**
  * UI Manager
- * Handles piano keyboard UI and animations
- * Delegates timeline rendering to SongVisualizer
+ * Piano keyboard interactions, animations, modals, hold-fill bars.
  */
 
 export class UIManager {
-    constructor(eventBus) {
-        this.eventBus = eventBus;
-        this.keys = document.querySelectorAll('.key');
-        this.micToggle = document.getElementById('mic-toggle');
-        this.volumeControl = document.getElementById('volume-control');
-        this.settingsToggle = document.getElementById('settings-toggle');
-        this.homeBtn = document.getElementById('home-btn');
-        this.playbackBtn = document.getElementById('playback-btn');
-        this.songsBtn = document.getElementById('songs-btn');
+    constructor(eventBus, audioManager) {
+        this.eventBus    = eventBus;
+        this.audioManager = audioManager;
+        this.keys        = document.querySelectorAll('.key');
 
-        // Modals
-        this.songPickerModal = document.getElementById('song-picker-modal');
-        this.parentModeModal = document.getElementById('parent-mode-modal');
+        this.micToggle    = document.getElementById('mic-toggle');
+        this.settingsToggle = document.getElementById('settings-toggle');
+        this.homeBtn      = document.getElementById('home-btn');
+        this.playbackBtn  = document.getElementById('playback-btn');
+        this.songsBtn     = document.getElementById('songs-btn');
+        this.volumeControl = document.getElementById('volume-control');
+
+        this.songPickerModal  = document.getElementById('song-picker-modal');
+        this.parentModeModal  = document.getElementById('parent-mode-modal');
         this.celebrationScreen = document.getElementById('celebration-screen');
         this.modalCloseButtons = document.querySelectorAll('.modal-close');
         this.closeParentModeBtn = document.getElementById('close-parent-mode');
+
+        // Add fill bars inside every key for the hold-duration visual
+        this.keys.forEach(k => {
+            const fill = document.createElement('div');
+            fill.className = 'key-fill';
+            k.appendChild(fill);
+        });
+
+        this._heldKeys = new Set(); // prevent key-repeat re-triggering
 
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        // Keyboard inputs
+        // ── Keyboard ──────────────────────────────────────────────
         document.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            const keyEl = document.querySelector(`[data-key="${key}"]`);
-            if (keyEl) this.handleKeyPress(keyEl);
+            if (e.repeat) return;
+            const keyEl = document.querySelector(`[data-key="${e.key.toLowerCase()}"]`);
+            if (keyEl) this._pressKey(keyEl);
+        });
+        document.addEventListener('keyup', (e) => {
+            const keyEl = document.querySelector(`[data-key="${e.key.toLowerCase()}"]`);
+            if (keyEl) this._releaseKey(keyEl);
         });
 
-        // Mouse/Touch inputs on keys
+        // ── Mouse / Touch ─────────────────────────────────────────
         this.keys.forEach(key => {
-            key.addEventListener('mousedown', () => this.handleKeyPress(key));
-            key.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                this.handleKeyPress(key);
-            });
+            key.addEventListener('mousedown',  () => this._pressKey(key));
+            key.addEventListener('mouseup',    () => this._releaseKey(key));
+            key.addEventListener('mouseleave', () => this._releaseKey(key));
+
+            key.addEventListener('touchstart', (e) => { e.preventDefault(); this._pressKey(key); },   { passive: false });
+            key.addEventListener('touchend',   (e) => { e.preventDefault(); this._releaseKey(key); }, { passive: false });
         });
 
-        // Buttons
-        this.songsBtn.addEventListener('click', () => this.showSongPicker());
-        this.playbackBtn.addEventListener('click', () => this.playRecording());
-        this.homeBtn.addEventListener('click', () => this.goHome());
-        this.micToggle.addEventListener('click', () => {
-            if (this.eventBus) {
-                this.eventBus.emit('mic:toggle', {});
-            }
-        });
+        // ── Buttons ───────────────────────────────────────────────
+        this.songsBtn.addEventListener('click',    () => this.showSongPicker());
+        this.playbackBtn.addEventListener('click', () => this.eventBus?.emit('playback:request', {}));
+        this.homeBtn.addEventListener('click',     () => this.eventBus?.emit('home:clicked', {}));
+        this.micToggle.addEventListener('click',   () => this.eventBus?.emit('mic:toggle', {}));
 
-        // Settings button (hold for 3 seconds to open parent mode)
-        let settingsHoldTime = 0;
-        this.settingsToggle.addEventListener('mousedown', () => {
-            settingsHoldTime = Date.now();
-        });
-        this.settingsToggle.addEventListener('mouseup', () => {
-            if (Date.now() - settingsHoldTime >= 3000) {
-                this.showParentMode();
-            }
-            settingsHoldTime = 0;
-        });
-        this.settingsToggle.addEventListener('touchstart', () => {
-            settingsHoldTime = Date.now();
-        });
-        this.settingsToggle.addEventListener('touchend', () => {
-            if (Date.now() - settingsHoldTime >= 3000) {
-                this.showParentMode();
-            }
-            settingsHoldTime = 0;
-        });
+        // Settings: hold 3 s to enter parent mode
+        let holdStart = 0;
+        const onHoldStart = () => { holdStart = Date.now(); };
+        const onHoldEnd   = () => { if (Date.now() - holdStart >= 3000) this.showParentMode(); holdStart = 0; };
+        this.settingsToggle.addEventListener('mousedown',  onHoldStart);
+        this.settingsToggle.addEventListener('mouseup',    onHoldEnd);
+        this.settingsToggle.addEventListener('touchstart', onHoldStart, { passive: true });
+        this.settingsToggle.addEventListener('touchend',   onHoldEnd,   { passive: true });
 
-        // Volume control
-        if (this.volumeControl) {
-            this.volumeControl.addEventListener('input', (e) => {
-                if (this.eventBus) {
-                    this.eventBus.emit('volume:changed', { volume: parseFloat(e.target.value) });
-                }
-            });
-        }
+        // Volume
+        this.volumeControl?.addEventListener('input', (e) => {
+            this.eventBus?.emit('volume:changed', { volume: parseFloat(e.target.value) });
+        });
 
         // Modal close buttons
         this.modalCloseButtons.forEach(btn => {
             btn.addEventListener('click', () => this.closeModal(btn.closest('.modal')));
         });
-        this.closeParentModeBtn.addEventListener('click', () => this.closeModal(this.parentModeModal));
+        this.closeParentModeBtn?.addEventListener('click', () => this.closeModal(this.parentModeModal));
 
-        // Close modals on background click
         [this.songPickerModal, this.parentModeModal].forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) this.closeModal(modal);
-            });
+            modal?.addEventListener('click', (e) => { if (e.target === modal) this.closeModal(modal); });
         });
     }
 
-    handleKeyPress(keyEl) {
+    // ── Key press / release ──────────────────────────────────────────────────
+
+    _pressKey(keyEl) {
         const note = keyEl.dataset.note;
-        if (!note) return;
+        if (!note || this._heldKeys.has(note)) return;
+        this._heldKeys.add(note);
 
-        // Play sound directly here for immediate response
-        this.playSound(note);
+        this.audioManager?.playSound(note);
+        this.animateKey(note, 'active');
 
-        // Animate key
-        this.animateKey(note);
-
-        // Emit so app.js can track progress and recording
-        if (this.eventBus) {
-            this.eventBus.emit('note:played', { note, source: 'keyboard' });
-        }
+        this.eventBus?.emit('note:down', { note, source: 'keyboard', time: Date.now() });
     }
 
-    playSound(note) {
-        const keyEl = document.querySelector(`[data-note="${note}"]`);
-        if (!keyEl) return;
+    _releaseKey(keyEl) {
+        const note = keyEl.dataset.note;
+        if (!note || !this._heldKeys.has(note)) return;
+        this._heldKeys.delete(note);
 
-        const char = keyEl.dataset.key;
-        let fileName = char;
-
-        // Handle special naming conventions
-        if (char === ".") fileName = "aa";
-
-        const audio = new Audio(`audio/${fileName}.mp3`);
-        if (this.volumeControl) {
-            audio.volume = parseFloat(this.volumeControl.value);
-        }
-        audio.play().catch(err => console.warn("Audio play blocked:", err));
+        this.eventBus?.emit('note:up', { note, source: 'keyboard', time: Date.now() });
     }
+
+    // ── Key animations ───────────────────────────────────────────────────────
 
     animateKey(note, type = 'active') {
         const keyEl = document.querySelector(`[data-note="${note}"]`);
@@ -141,49 +122,89 @@ export class UIManager {
         if (!keyEl) return;
         keyEl.classList.remove('target');
         keyEl.classList.add('correct');
-        setTimeout(() => keyEl.classList.remove('correct'), 200);
+        setTimeout(() => keyEl.classList.remove('correct'), 220);
+    }
+
+    /** Start the hold-fill animation on a key.
+     *  durationMs = how long Paul needs to hold before we advance.
+     */
+    startHoldFill(note, durationMs) {
+        const keyEl = document.querySelector(`[data-note="${note}"]`);
+        if (!keyEl) return;
+        const fill = keyEl.querySelector('.key-fill');
+        if (!fill) return;
+        // Reset first (in case of retry)
+        fill.style.transition = 'none';
+        fill.style.height = '0%';
+        // Force reflow so transition triggers
+        fill.getBoundingClientRect();
+        fill.style.transition = `height ${durationMs}ms linear`;
+        fill.style.height = '100%';
+    }
+
+    /** Cancel / drain the hold-fill (key released too early) */
+    cancelHoldFill(note) {
+        const keyEl = document.querySelector(`[data-note="${note}"]`);
+        if (!keyEl) return;
+        const fill = keyEl.querySelector('.key-fill');
+        if (!fill) return;
+        fill.style.transition = 'height 180ms ease-out';
+        fill.style.height = '0%';
+    }
+
+    // ── Highlight / target ───────────────────────────────────────────────────
+
+    highlightNote(note) {
+        this.clearAllHighlights();
+        const keyEl = document.querySelector(`[data-note="${note}"]`);
+        if (keyEl) keyEl.classList.add('target');
+    }
+
+    clearAllHighlights() {
+        this.keys.forEach(k => {
+            k.classList.remove('target');
+            // also drain any in-progress fill
+            const fill = k.querySelector('.key-fill');
+            if (fill) { fill.style.transition = 'none'; fill.style.height = '0%'; }
+        });
     }
 
     updateMicUI(isActive) {
-        this.micToggle.style.opacity = isActive ? '1' : '0.5';
-        this.micToggle.textContent = isActive ? '🎤' : '🎙️';
+        this.micToggle.style.opacity  = isActive ? '1' : '0.5';
+        this.micToggle.textContent    = isActive ? '🎤' : '🎙️';
     }
 
-    showSongPicker() {
-        this.songPickerModal.classList.remove('hidden');
-    }
+    // ── Modals ───────────────────────────────────────────────────────────────
 
-    closeSongPicker() {
-        this.closeModal(this.songPickerModal);
-    }
-
-    showParentMode() {
-        this.parentModeModal.classList.remove('hidden');
-    }
+    showSongPicker()  { this.songPickerModal.classList.remove('hidden'); }
+    showParentMode()  { this.parentModeModal.classList.remove('hidden'); }
+    closeModal(modal) { modal?.classList.add('hidden'); }
 
     showCelebration(songTitle, score) {
         this.celebrationScreen.classList.remove('hidden');
         document.getElementById('celebration-song-name').textContent = `You played ${songTitle}!`;
-        document.getElementById('celebration-score').textContent = `${score}% Perfect!`;
-        this.createConfetti();
+        document.getElementById('celebration-score').textContent     = `${score}% Perfect!`;
+        this._createConfetti();
     }
 
-    hideCelebration() {
-        this.celebrationScreen.classList.add('hidden');
-    }
+    hideCelebration() { this.celebrationScreen.classList.add('hidden'); }
 
-    createConfetti() {
+    closeSongPicker() { this.closeModal(this.songPickerModal); }
+
+    _createConfetti() {
         const container = document.getElementById('confetti');
         container.innerHTML = '';
-
-        for (let i = 0; i < 50; i++) {
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            confetti.style.left = Math.random() * 100 + '%';
-            confetti.style.top = -10 + 'px';
-            confetti.style.backgroundColor = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#51E898'][Math.floor(Math.random() * 4)];
-            confetti.style.animationDelay = Math.random() * 0.3 + 's';
-            container.appendChild(confetti);
+        const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#51E898', '#AA44FF'];
+        for (let i = 0; i < 60; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.left            = Math.random() * 100 + '%';
+            c.style.top             = '-10px';
+            c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            c.style.animationDelay  = Math.random() * 1 + 's';
+            c.style.width           = (8 + Math.random() * 8) + 'px';
+            c.style.height          = (8 + Math.random() * 8) + 'px';
+            container.appendChild(c);
         }
     }
 
@@ -200,58 +221,21 @@ export class UIManager {
                 <div class="song-difficulty">${'⭐'.repeat(song.difficulty || 1)}</div>
             `;
             card.addEventListener('click', () => {
-                if (this.eventBus) {
-                    this.eventBus.emit('song:selected', { songId: song.id });
-                }
+                this.eventBus?.emit('song:selected', { songId: song.id });
                 this.closeSongPicker();
             });
             grid.appendChild(card);
         });
 
-        // Add Free Play card
-        const freePlayCard = document.createElement('div');
-        freePlayCard.className = 'song-card';
-        freePlayCard.innerHTML = `
-            <div class="song-emoji">🎹</div>
-            <div class="song-title">Free Play</div>
-            <div class="song-difficulty">No rules!</div>
-        `;
-        freePlayCard.addEventListener('click', () => {
-            if (this.eventBus) {
-                this.eventBus.emit('song:selected', { songId: 'free' });
-            }
+        const freeCard = document.createElement('div');
+        freeCard.className = 'song-card';
+        freeCard.innerHTML = `<div class="song-emoji">🎹</div><div class="song-title">Free Play</div><div class="song-difficulty">No rules!</div>`;
+        freeCard.addEventListener('click', () => {
+            this.eventBus?.emit('song:selected', { songId: 'free' });
             this.closeSongPicker();
         });
-        grid.appendChild(freePlayCard);
+        grid.appendChild(freeCard);
     }
 
-    playRecording() {
-        if (this.eventBus) {
-            this.eventBus.emit('playback:request', {});
-        }
-    }
-
-    goHome() {
-        if (this.eventBus) {
-            this.eventBus.emit('home:clicked', {});
-        }
-    }
-
-    closeModal(modal) {
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    }
-
-    clearAllHighlights() {
-        this.keys.forEach(k => k.classList.remove('target'));
-    }
-
-    highlightNote(note) {
-        this.clearAllHighlights();
-        const keyEl = document.querySelector(`[data-note="${note}"]`);
-        if (keyEl) {
-            keyEl.classList.add('target');
-        }
-    }
+    goHome() { this.eventBus?.emit('home:clicked', {}); }
 }

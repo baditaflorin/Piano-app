@@ -226,6 +226,23 @@ body {
     transition: none !important;
 }
 
+/* Hold-duration fill bar — rises from bottom of key as Paul holds */
+.key-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0%;
+    background: rgba(81, 232, 152, 0.75);
+    pointer-events: none;
+    border-radius: 0 0 6px 6px;
+    /* transition set dynamically in JS */
+}
+
+.key.black .key-fill {
+    border-radius: 0 0 5px 5px;
+}
+
 @keyframes keyPress {
     0% { transform: translateY(0); }
     40% { transform: translateY(4px); }

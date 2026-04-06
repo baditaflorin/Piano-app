@@ -22,12 +22,14 @@ export class SongVisualizer {
         this.currentStep = 0;    // which note Paul needs to play next
         this.playedSteps = [];   // which steps have been completed
 
-        this.animFrame = 0;      // for pulsing animations
+        this.animFrame   = 0;    // for pulsing animations
+        this.holdPct     = 0;    // 0-1, how far along the hold is
 
         if (this.eventBus) {
             this.eventBus.on('song:step', (data) => {
                 this.currentStep = data.step;
                 this.playedSteps = data.playedSteps || [];
+                this.holdPct = 0;
             });
         }
 
@@ -127,11 +129,21 @@ export class SongVisualizer {
                 ctx.fillStyle = color;
                 ctx.fill();
 
+                // Hold arc — green ring fills clockwise as Paul holds
+                if (this.holdPct > 0) {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.holdPct);
+                    ctx.strokeStyle = '#51E898';
+                    ctx.lineWidth = 5;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                }
+
                 // Arrow below pointing UP at the current note
-                const arrowY = cy + r + 18 + Math.sin(this.animFrame * 0.12) * 5;
+                const arrowY = cy + r + 22 + Math.sin(this.animFrame * 0.12) * 5;
                 ctx.fillStyle = '#FFE66D';
                 ctx.beginPath();
-                ctx.moveTo(cx, cy + r + 4);
+                ctx.moveTo(cx, cy + r + 6);
                 ctx.lineTo(cx - 10, arrowY);
                 ctx.lineTo(cx + 10, arrowY);
                 ctx.closePath();
