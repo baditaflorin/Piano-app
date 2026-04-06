@@ -100,16 +100,16 @@ export class UIManager {
         const note = keyEl.dataset.note;
         if (!note) return;
 
-        // Emit note played event
-        if (this.eventBus) {
-            this.eventBus.emit('note:played', { note, source: 'keyboard' });
-        }
-
-        // Play sound
+        // Play sound directly here for immediate response
         this.playSound(note);
 
         // Animate key
         this.animateKey(note);
+
+        // Emit so app.js can track progress and recording
+        if (this.eventBus) {
+            this.eventBus.emit('note:played', { note, source: 'keyboard' });
+        }
     }
 
     playSound(note) {

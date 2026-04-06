@@ -19,9 +19,10 @@ export class RecordingManager {
         this.playbackStartTime = null;
         this.playbackSpeed = 1.0;
 
-        // Listen for note detections
+        // Listen for both mic detections and keyboard presses
         if (this.eventBus) {
             this.eventBus.on('note:detected', (data) => this.onNoteDetected(data));
+            this.eventBus.on('note:played', (data) => this.onNoteDetected({ ...data, confidence: 1.0 }));
         }
     }
 

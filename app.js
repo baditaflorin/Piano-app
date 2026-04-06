@@ -59,6 +59,7 @@ class PianoApp {
         // State
         this.currentSong = null;
         this.currentSongId = 'free';
+        this.currentStep = 0;
         this.isMicActive = false;
         this.isRecording = false;
 
@@ -161,8 +162,13 @@ class PianoApp {
     onNotePlayed(data) {
         const { note, source } = data;
 
-        // Play audio
-        this.audioManager.playSound(note);
+        // UIManager plays audio directly for keyboard presses (immediate response)
+        // AudioManager handles playback for mic-detected notes
+        if (source === 'mic') {
+            this.audioManager.playSound(note);
+        }
+
+        // Add to recording (RecordingManager listens to both note:played and note:detected)
 
         // Check song progress if in learning mode
         if (this.currentSongId !== 'free') {
@@ -173,22 +179,24 @@ class PianoApp {
     checkSongProgress(note) {
         if (!this.currentSong) return;
 
-        const song = this.currentSong;
-        const targetNotes = this.songVisualizer.targetNotes;
+        const notes = this.currentSong.notes;
+        const target = notes[this.currentStep];
+        if (!target) return;
 
-        // Simple progress check: did we hit a target note?
-        const matchedIndex = targetNotes.findIndex(n => n.note === note && !n.matched);
-        if (matchedIndex >= 0) {
-            targetNotes[matchedIndex].matched = true;
+        if (note === target.note) {
+            // Correct note!
+            this.currentStep++;
 
-            const progress = (targetNotes.filter(n => n.matched).length / targetNotes.length) * 100;
-
-            // Check if song is complete
-            if (progress >= 80) {
-                // Song essentially complete (80% of notes hit)
-                this.showCelebration(song.title, progress);
+            if (this.currentStep >= notes.length) {
+                // Song complete
+                this.showCelebration(this.currentSong.title, 100);
+            } else {
+                // Highlight the next target
+                const nextNote = notes[this.currentStep].note;
+                this.uiManager.highlightNote(nextNote);
             }
         }
+        // Wrong notes are silently ignored — no punishment for Paul
     }
 
     selectSong(songId) {
@@ -197,13 +205,18 @@ class PianoApp {
         this.songVisualizer.clear();
         this.uiManager.clearAllHighlights();
 
+        this.currentStep = 0;
+
         if (songId === 'free') {
             this.currentSong = null;
+            this.uiManager.clearAllHighlights();
             console.log("Free play mode");
         } else {
             this.currentSong = this.songLibrary.getSong(songId);
             if (this.currentSong) {
                 this.songVisualizer.setSong(this.currentSong);
+                // Highlight the first note immediately
+                this.uiManager.highlightNote(this.currentSong.notes[0].note);
                 console.log(`Selected song: ${this.currentSong.title}`);
             }
         }
