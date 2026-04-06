@@ -69,6 +69,10 @@ class PianoApp {
   private _holdStart: number;
   private _holdDurationMs: number;
 
+  // Scoring — track real accuracy
+  private _correctNotes: number;
+  private _wrongNotes: number;
+
   constructor() {
     this.eventBus = new EventBus();
 
@@ -91,10 +95,14 @@ class PianoApp {
     this.isRecording   = false;
 
     // Hold-duration state
-    this._holdNote      = null;
-    this._holdTimer     = null;
-    this._holdStart     = 0;
+    this._holdNote       = null;
+    this._holdTimer      = null;
+    this._holdStart      = 0;
     this._holdDurationMs = 0;
+
+    // Scoring
+    this._correctNotes = 0;
+    this._wrongNotes   = 0;
 
     // Initialize
     void this.init();
@@ -207,10 +215,16 @@ class PianoApp {
     if (!this.currentSong || this.currentSongId === 'free') return;
 
     const target = this.currentSong.notes[this.currentStep];
-    if (!target || note !== target.note) return;
+    if (!target) return;
 
-    // Correct note pressed — start hold timer
-    this._startHold(note, target.duration, this.currentSong.bpm);
+    if (note === target.note) {
+      // Correct note pressed — start hold timer
+      this._startHold(note, target.duration, this.currentSong.bpm);
+    } else {
+      // Wrong note — count it, mark in visualizer, but don't punish Paul
+      this._wrongNotes++;
+      this.eventBus.emit('note:result', { step: this.currentStep, note, correct: false });
+    }
   }
 
   private onNoteUp(data: EventMap['note:up']): void {
@@ -252,6 +266,9 @@ class PianoApp {
     this._holdNote = null;
     if (!note) return;
 
+    this._correctNotes++;
+    this.eventBus.emit('note:result', { step: this.currentStep, note, correct: true });
+
     this.uiManager.flashCorrect(note);
     this.uiManager.cancelHoldFill(note);
     this._advanceSong(note);
@@ -279,7 +296,9 @@ class PianoApp {
     const notes = song.notes;
     if (this.currentStep >= notes.length) {
       this.uiManager.clearAllHighlights();
-      this.showCelebration(song.title, 100);
+      const total = this._correctNotes + this._wrongNotes;
+      const score = total > 0 ? Math.round((this._correctNotes / total) * 100) : 100;
+      this.showCelebration(song.title, score);
     } else {
       const nextNote = notes[this.currentStep].note;
       if (nextNote === completedNote) {
@@ -298,7 +317,9 @@ class PianoApp {
     this.songVisualizer.clear();
     this.uiManager.clearAllHighlights();
 
-    this.currentStep = 0;
+    this.currentStep   = 0;
+    this._correctNotes = 0;
+    this._wrongNotes   = 0;
 
     if (songId === 'free') {
       this.currentSong = null;

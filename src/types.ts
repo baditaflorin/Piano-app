@@ -52,6 +52,7 @@ export type EventMap = {
   'note:up': NoteUpEvent;
   'song:selected': { songId: string };
   'song:step': { step: number; playedSteps: number[] };
+  'note:result': { step: number; note: string; correct: boolean };
   'volume:changed': { volume: number };
   'playback:request': Record<string, never>;
   'home:clicked': Record<string, never>;
